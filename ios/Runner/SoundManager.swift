@@ -65,8 +65,8 @@ class SoundManager {
     
     static func getSoundFiles() -> [String] {
         let bundle = Bundle.main
+        var availableSounds: [String] = ["system_default"] // Always include system default
         let soundFiles = ["stars", "summer", "mistery"]
-        var availableSounds: [String] = []
         
         for sound in soundFiles {
             if bundle.url(forResource: sound, withExtension: "caf") != nil {

@@ -152,8 +152,8 @@ import UserNotifications
     
     // Since we removed subtitles, we'll use a default sound approach
     // In the future, this could be enhanced to extract sound info from payload
-    // For now, default to stars.caf
-    return "stars.caf"
+    // For now, default to system default
+    return "system_default"
   }
   
   // Helper function to cancel auto-snooze for a specific reminder

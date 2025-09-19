@@ -201,6 +201,16 @@ class IOSNotificationService implements NotificationService {
     bool isMain = true,
   }) {
     switch (reminder.soundName) {
+      case 'system_default':
+        return DarwinNotificationDetails(
+          categoryIdentifier: kAlarmCategory,
+          sound: null, // null uses system default sound
+          interruptionLevel: InterruptionLevel.timeSensitive,
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          badgeNumber: 1,
+        );
       case 'stars.caf':
         return DarwinNotificationDetails(
           categoryIdentifier: kAlarmCategory,
@@ -209,7 +219,7 @@ class IOSNotificationService implements NotificationService {
           presentAlert: true,
           presentBadge: true,
           presentSound: true,
-          badgeNumber: 1,
+          badgeNumber: 2,
         );
       case 'summer.caf':
         return DarwinNotificationDetails(
@@ -219,7 +229,7 @@ class IOSNotificationService implements NotificationService {
           presentAlert: true,
           presentBadge: true,
           presentSound: true,
-          badgeNumber: 2,
+          badgeNumber: 3,
         );
       case 'mistery.caf':
         return DarwinNotificationDetails(
@@ -229,7 +239,7 @@ class IOSNotificationService implements NotificationService {
           presentAlert: true,
           presentBadge: true,
           presentSound: true,
-          badgeNumber: 3,
+          badgeNumber: 4,
         );
       // Legacy support for old names
       case 'chime_1.caf':
@@ -265,7 +275,7 @@ class IOSNotificationService implements NotificationService {
       default:
         return DarwinNotificationDetails(
           categoryIdentifier: kAlarmCategory,
-          sound: 'stars.caf', // Default to stars.caf instead of null
+          sound: null, // Default to system sound
           interruptionLevel: InterruptionLevel.active,
           presentAlert: true,
           presentBadge: true,

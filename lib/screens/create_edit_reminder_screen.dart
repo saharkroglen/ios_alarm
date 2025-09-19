@@ -464,6 +464,8 @@ class _CreateEditReminderScreenState
 
   String _getSoundDisplayName(String soundName) {
     switch (soundName) {
+      case 'system_default':
+        return 'System Default';
       case 'stars.caf':
         return 'Stars';
       case 'summer.caf':
@@ -499,6 +501,9 @@ class _CreateEditReminderScreenState
         // Fallback to system sounds
         SystemSoundType soundType;
         switch (soundName) {
+          case 'system_default':
+            soundType = SystemSoundType.alert; // Default notification sound
+            break;
           case 'stars.caf':
             soundType = SystemSoundType.click;
             break;
