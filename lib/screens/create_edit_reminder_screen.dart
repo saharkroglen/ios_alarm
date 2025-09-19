@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 import '../models/reminder.dart' as model;
 import '../providers/app_providers.dart';
+import '../services/sound_service.dart';
 
 /// Helper function to round DateTime down to the nearest minute
 /// Removes seconds and milliseconds: 18:56:30.123 -> 18:56:00.000
@@ -35,11 +38,11 @@ class _CreateEditReminderScreenState
   final _titleController = TextEditingController();
   final _notesController = TextEditingController();
 
-  DateTime _scheduledAt = DateTime.now().add(const Duration(hours: 1));
+  DateTime _scheduledAt = DateTime.now();
   model.RepeatRule _repeatRule = model.RepeatRule.none;
   Set<int> _customWeekdays = {};
   bool _timeSensitive = false;
-  String _soundName = model.kDefaultSound;
+  String _soundName = model.kDefaultSound; // Will be updated in initState
   List<model.SnoozePreset> _snoozePresets = List.from(
     model.kDefaultSnoozePresets,
   );
@@ -48,12 +51,24 @@ class _CreateEditReminderScreenState
   bool _isEditing = false;
   model.Reminder? _originalReminder;
 
+  // Sound preview
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isPlayingSound = false;
+
   @override
   void initState() {
     super.initState();
     _isEditing = widget.reminderId != null;
     if (_isEditing) {
       _loadReminder();
+    } else {
+      // For new reminders, use the user's selected default sound
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final defaultSound = ref.read(defaultSoundProvider);
+        setState(() {
+          _soundName = defaultSound;
+        });
+      });
     }
   }
 
@@ -61,6 +76,7 @@ class _CreateEditReminderScreenState
   void dispose() {
     _titleController.dispose();
     _notesController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -318,6 +334,15 @@ class _CreateEditReminderScreenState
                 title: Text(_getSoundDisplayName(sound)),
                 value: sound,
                 groupValue: _soundName,
+                secondary: IconButton(
+                  icon: Icon(
+                    _isPlayingSound ? Icons.stop : Icons.play_arrow,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 20,
+                  ),
+                  onPressed: () => _playSound(sound),
+                  tooltip: _isPlayingSound ? 'Stop' : 'Preview',
+                ),
                 onChanged: (value) {
                   setState(() => _soundName = value!);
                 },
@@ -439,14 +464,93 @@ class _CreateEditReminderScreenState
 
   String _getSoundDisplayName(String soundName) {
     switch (soundName) {
+      case 'stars.caf':
+        return 'Stars';
+      case 'summer.caf':
+        return 'Summer';
+      case 'mistery.caf':
+        return 'Mystery';
+      // Legacy support
       case 'alarm_1.caf':
-        return 'Alarm';
+        return 'Summer'; // Redirect to new name
+      case 'chime_1.caf':
       case 'chime_1.aiff':
-        return 'Chime';
+        return 'Stars';
       case 'bell_1.caf':
-        return 'Bell';
+        return 'Mystery';
       default:
         return soundName;
+    }
+  }
+
+  Future<void> _playSound(String soundName) async {
+    if (_isPlayingSound) {
+      setState(() => _isPlayingSound = false);
+      return;
+    }
+
+    try {
+      setState(() => _isPlayingSound = true);
+
+      // Try to play the custom sound from iOS bundle first
+      final soundPlayed = await SoundService.playSound(soundName);
+
+      if (!soundPlayed) {
+        // Fallback to system sounds
+        SystemSoundType soundType;
+        switch (soundName) {
+          case 'stars.caf':
+            soundType = SystemSoundType.click;
+            break;
+          case 'summer.caf':
+            soundType = SystemSoundType.alert;
+            break;
+          case 'mistery.caf':
+            soundType = SystemSoundType.alert;
+            break;
+          // Legacy support
+          case 'alarm_1.caf':
+            soundType = SystemSoundType.alert;
+            break;
+          case 'chime_1.caf':
+            soundType = SystemSoundType.click;
+            break;
+          case 'bell_1.caf':
+            soundType = SystemSoundType.alert;
+            break;
+          default:
+            soundType = SystemSoundType.alert;
+        }
+
+        await SystemSound.play(soundType);
+      }
+
+      // Show feedback message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Playing ${_getSoundDisplayName(soundName)}'),
+            duration: const Duration(milliseconds: 800),
+          ),
+        );
+      }
+
+      // Reset state after a short delay
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (mounted) {
+        setState(() => _isPlayingSound = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isPlayingSound = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not play sound: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 

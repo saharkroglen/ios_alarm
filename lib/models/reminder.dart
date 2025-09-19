@@ -185,10 +185,10 @@ const List<SnoozePreset> kDefaultSnoozePresets = [
 
 /// Available sound files (to be placed in assets/sounds/)
 const List<String> kAvailableSounds = [
-  'alarm_1.caf',
-  'chime_1.caf',
-  'bell_1.caf',
+  'stars.caf',
+  'summer.caf',
+  'mistery.caf',
 ];
 
 /// Default sound
-const String kDefaultSound = 'alarm_1.caf';
+const String kDefaultSound = 'stars.caf';

@@ -65,7 +65,7 @@ class SoundManager {
     
     static func getSoundFiles() -> [String] {
         let bundle = Bundle.main
-        let soundFiles = ["alarm_1", "chime_1", "bell_1"]
+        let soundFiles = ["stars", "summer", "mistery"]
         var availableSounds: [String] = []
         
         for sound in soundFiles {

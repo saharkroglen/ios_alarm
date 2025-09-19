@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../database/sqflite_database.dart';
 import '../models/reminder.dart' as model;
 import '../services/notification_service.dart';
+import '../services/preferences_service.dart';
 
 /// Helper function to round DateTime down to the nearest minute
 /// Removes seconds and milliseconds: 18:56:30.123 -> 18:56:00.000
@@ -517,10 +518,29 @@ final currentReminderActionProvider = StateProvider<Map<String, dynamic>?>(
   (ref) => null,
 );
 
+// Persistent default sound provider
+class DefaultSoundNotifier extends StateNotifier<String> {
+  DefaultSoundNotifier() : super(model.kDefaultSound) {
+    _loadDefaultSound();
+  }
+
+  Future<void> _loadDefaultSound() async {
+    await PreferencesService.init();
+    final savedSound = PreferencesService.getDefaultSound();
+    state = savedSound;
+  }
+
+  Future<void> setDefaultSound(String soundName) async {
+    await PreferencesService.setDefaultSound(soundName);
+    state = soundName;
+  }
+}
+
 // Settings providers
-final defaultSoundProvider = StateProvider<String>(
-  (ref) => model.kDefaultSound,
-);
+final defaultSoundProvider =
+    StateNotifierProvider<DefaultSoundNotifier, String>(
+      (ref) => DefaultSoundNotifier(),
+    );
 final defaultSnoozePresetsProvider = StateProvider<List<model.SnoozePreset>>(
   (ref) => model.kDefaultSnoozePresets,
 );

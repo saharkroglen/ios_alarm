@@ -221,8 +221,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                           onChanged: (value) {
                             if (value != null) {
-                              ref.read(defaultSoundProvider.notifier).state =
-                                  value;
+                              ref
+                                  .read(defaultSoundProvider.notifier)
+                                  .setDefaultSound(value);
                               Navigator.of(context).pop();
                             }
                           },
@@ -464,12 +465,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   String _getSoundDisplayName(String soundName) {
     switch (soundName) {
+      case 'stars.caf':
+        return 'Stars';
+      case 'summer.caf':
+        return 'Summer';
+      case 'mistery.caf':
+        return 'Mystery';
+      // Legacy support
       case 'alarm_1.caf':
-        return 'Alarm';
+        return 'Summer'; // Redirect to new name
       case 'chime_1.caf':
-        return 'Chime';
+        return 'Stars';
       case 'bell_1.caf':
-        return 'Bell';
+        return 'Mystery';
       default:
         return soundName;
     }
