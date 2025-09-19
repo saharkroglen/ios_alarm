@@ -11,6 +11,7 @@ import 'screens/custom_snooze_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/permissions_screen.dart';
 import 'screens/reminder_action_dialog.dart';
+import 'services/preferences_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -133,7 +134,19 @@ extension on IOSAlarmApp {
         ),
       ],
       redirect: (context, state) async {
-        // For now, skip permission redirect to test the app
+        // Initialize preferences service
+        await PreferencesService.init();
+
+        // Check if this is the first time and we need to prompt for permissions
+        final hasPrompted = PreferencesService.hasPromptedForPermissions();
+
+        // If we haven't prompted before and we're not already on the permissions screen
+        if (!hasPrompted && state.uri.path != '/permissions') {
+          // Mark as prompted to avoid loops
+          await PreferencesService.setHasPromptedForPermissions(true);
+          return '/permissions';
+        }
+
         return null;
       },
     );

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/app_providers.dart';
+import '../services/preferences_service.dart';
 
 class PermissionsScreen extends ConsumerWidget {
   const PermissionsScreen({super.key});
@@ -119,6 +121,18 @@ class PermissionsScreen extends ConsumerWidget {
     final notificationService = ref.read(notificationServiceProvider);
 
     try {
+      // Check if we've already been denied before
+      final wasAlreadyDenied =
+          PreferencesService.arePermissionsPermanentlyDenied();
+
+      if (wasAlreadyDenied) {
+        // If already denied, go directly to settings
+        if (context.mounted) {
+          _showOpenSettingsDialog(context);
+        }
+        return;
+      }
+
       await notificationService.requestPermissions();
 
       // Refresh permission status
@@ -128,9 +142,13 @@ class PermissionsScreen extends ConsumerWidget {
       final hasPermissions = await notificationService.arePermissionsGranted();
 
       if (hasPermissions && context.mounted) {
+        // Reset the permanently denied flag if permissions are now granted
+        await PreferencesService.setPermissionsPermanentlyDenied(false);
         context.go('/');
       } else if (context.mounted) {
-        _showPermissionDeniedDialog(context);
+        // Mark as permanently denied since the system dialog won't show again
+        await PreferencesService.setPermissionsPermanentlyDenied(true);
+        _showOpenSettingsDialog(context);
       }
     } catch (e) {
       if (context.mounted) {
@@ -143,15 +161,15 @@ class PermissionsScreen extends ConsumerWidget {
     context.go('/');
   }
 
-  void _showPermissionDeniedDialog(BuildContext context) {
+  void _showOpenSettingsDialog(BuildContext context) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder:
           (context) => AlertDialog(
-            title: const Text('Permissions Required'),
+            title: const Text('Open Settings'),
             content: const Text(
-              'Notifications are required for the app to work properly. '
-              'You can enable them later in Settings.',
+              'To enable notifications, please go to Settings > Notifications > AlertFlow SK Pro and turn on "Allow Notifications".',
             ),
             actions: [
               TextButton(
@@ -159,11 +177,34 @@ class PermissionsScreen extends ConsumerWidget {
                   Navigator.of(context).pop();
                   context.go('/');
                 },
-                child: const Text('Continue'),
+                child: const Text('Skip'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await _openAppSettings();
+                  if (context.mounted) {
+                    context.go('/');
+                  }
+                },
+                child: const Text('Open Settings'),
               ),
             ],
           ),
     );
+  }
+
+  Future<void> _openAppSettings() async {
+    const url = 'app-settings:';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url));
+    } else {
+      // Fallback to general settings
+      const settingsUrl = 'App-Prefs:';
+      if (await canLaunchUrl(Uri.parse(settingsUrl))) {
+        await launchUrl(Uri.parse(settingsUrl));
+      }
+    }
   }
 
   void _showErrorDialog(BuildContext context, String error) {

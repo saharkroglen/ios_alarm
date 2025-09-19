@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/reminder.dart' as model;
 import '../providers/app_providers.dart';
 import '../services/scheduling_service.dart';
+import '../services/preferences_service.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -17,6 +19,7 @@ class HomeScreen extends ConsumerWidget {
 
     final remindersAsync = ref.watch(reminderNotifierProvider);
     final groupedReminders = ref.watch(groupedRemindersProvider);
+    final permissionStatus = ref.watch(permissionStatusProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -28,49 +31,203 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: remindersAsync.when(
-        data: (reminders) {
-          if (reminders.isEmpty) {
-            return _buildEmptyState(context);
-          }
-          return _buildRemindersList(context, ref, groupedReminders);
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error:
-            (error, stack) => Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.error,
+      body: Column(
+        children: [
+          // Permission alert banner
+          permissionStatus.when(
+            data: (hasPermissions) {
+              if (!hasPermissions &&
+                  !PreferencesService.hasPermissionsDismissed()) {
+                return _buildPermissionBanner(context, ref);
+              }
+              return const SizedBox.shrink();
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+
+          // Main content
+          Expanded(
+            child: remindersAsync.when(
+              data: (reminders) {
+                if (reminders.isEmpty) {
+                  return _buildEmptyState(context);
+                }
+                return _buildRemindersList(context, ref, groupedReminders);
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error:
+                  (error, stack) => Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading reminders',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          error.toString(),
+                          style: Theme.of(context).textTheme.bodyMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed:
+                              () => ref.refresh(reminderNotifierProvider),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error loading reminders',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    error.toString(),
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => ref.refresh(reminderNotifierProvider),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
             ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/create'),
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  Widget _buildPermissionBanner(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isPermanentlyDenied =
+        PreferencesService.arePermissionsPermanentlyDenied();
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.error.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.notifications_off,
+                color: theme.colorScheme.onErrorContainer,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Notifications Disabled',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onErrorContainer,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () => _dismissPermissionBanner(ref),
+                icon: Icon(
+                  Icons.close,
+                  color: theme.colorScheme.onErrorContainer,
+                  size: 20,
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isPermanentlyDenied
+                ? 'Your reminders won\'t work without notification permissions. Go to Settings to enable them.'
+                : 'Your reminders won\'t work without notification permissions. Enable them to receive alerts.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onErrorContainer,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              ElevatedButton.icon(
+                onPressed:
+                    isPermanentlyDenied
+                        ? () => _openAppSettings()
+                        : () => _requestPermissions(context, ref),
+                icon: Icon(
+                  isPermanentlyDenied ? Icons.settings : Icons.notifications,
+                  size: 16,
+                ),
+                label: Text(
+                  isPermanentlyDenied
+                      ? 'Open Settings'
+                      : 'Enable Notifications',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.error,
+                  foregroundColor: theme.colorScheme.onError,
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: () => context.push('/permissions'),
+                child: Text(
+                  'Learn More',
+                  style: TextStyle(color: theme.colorScheme.onErrorContainer),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _requestPermissions(BuildContext context, WidgetRef ref) async {
+    final notificationService = ref.read(notificationServiceProvider);
+
+    try {
+      await notificationService.requestPermissions();
+      // Refresh permission status
+      ref.invalidate(permissionStatusProvider);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error requesting permissions: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _dismissPermissionBanner(WidgetRef ref) async {
+    await PreferencesService.setPermissionsDismissed(true);
+    // Force a rebuild to hide the banner
+    ref.invalidate(permissionStatusProvider);
+  }
+
+  Future<void> _openAppSettings() async {
+    const url = 'app-settings:';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url));
+    } else {
+      // Fallback to general settings
+      const settingsUrl = 'App-Prefs:';
+      if (await canLaunchUrl(Uri.parse(settingsUrl))) {
+        await launchUrl(Uri.parse(settingsUrl));
+      }
+    }
   }
 
   Widget _buildEmptyState(BuildContext context) {
@@ -115,7 +272,8 @@ class HomeScreen extends ConsumerWidget {
   ) {
     return RefreshIndicator(
       onRefresh: () async {
-        ref.refresh(reminderNotifierProvider);
+        // Refresh reminders list
+        ref.read(reminderNotifierProvider.notifier);
       },
       child: ListView(
         padding: const EdgeInsets.all(16.0),
