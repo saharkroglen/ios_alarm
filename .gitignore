@@ -1,45 +1,68 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
+# OS junk
 .DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+Thumbs.db
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
+# IDEs
 .idea/
+.vscode/
+*.iml
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# Dart / Flutter
 .dart_tool/
+.packages
 .flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
+build/
+coverage/
 
-# Symbolication related
-app.*.symbols
+# Keep this tracked (used by Flutter tooling)
+# (Do NOT add .metadata to .gitignore)
+# .metadata
 
-# Obfuscation related
-app.*.map.json
+# Android
+android/.gradle/
+android/captures/
+android/local.properties
+android/key.properties
+android/app/*.keystore
+android/app/*.jks
+# Build outputs are under build/, but these are fine too:
+# android/app/debug
+# android/app/profile
+# android/app/release
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# iOS
+ios/Flutter/.last_build_id
+ios/Flutter/ephemeral/
+ios/.symlinks/
+ios/Pods/
+ios/Flutter/Generated.xcconfig
+**/xcuserdata/
+
+# (Recommended: commit Podfile.lock for iOS builds)
+# Remove the next line if you choose to track it:
+# ios/Podfile.lock
+
+# macOS
+macos/Flutter/ephemeral/
+macos/Pods/
+**/xcuserdata/
+# macos/Podfile.lock  # same guidance as iOS
+
+# Linux
+linux/flutter/ephemeral/
+
+# Windows
+windows/flutter/ephemeral/
+
+# Web
+# (build artifacts already ignored via build/)
+
+# Optional: FVM
+.fvm/
+!.fvm/fvm_config.json
+
+# Optional: SwiftPM (if you add native code)
+.swiftpm/
