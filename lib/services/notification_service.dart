@@ -430,7 +430,7 @@ class IOSNotificationService implements NotificationService {
       presentBadge: true,
       presentSound: true, // Use built-in sound for longer banner duration
       badgeNumber: 2, // Different badge to show it's auto-snooze
-      subtitle: '🔄 Auto-snooze - Action needed!',
+      // subtitle: '🔄 Auto-snooze - Action needed!',
     );
 
     final NotificationDetails notificationDetails = NotificationDetails(
