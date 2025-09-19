@@ -550,7 +550,8 @@ class IOSNotificationService implements NotificationService {
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.wallClockTime,
-        matchDateTimeComponents: DateTimeComponents.time,
+        // DO NOT use matchDateTimeComponents for auto-snooze - they should fire only once
+        // matchDateTimeComponents: DateTimeComponents.time, // This causes daily repeats!
       );
 
       // Store auto-snooze notification in database

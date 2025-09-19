@@ -5,6 +5,7 @@ import '../database/sqflite_database.dart';
 import '../models/reminder.dart' as model;
 import '../services/notification_service.dart';
 import '../services/preferences_service.dart';
+import '../services/scheduling_service.dart';
 
 /// Helper function to round DateTime down to the nearest minute
 /// Removes seconds and milliseconds: 18:56:30.123 -> 18:56:00.000
@@ -209,35 +210,88 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
         }
         print('✅ Found reminder: ${reminder.title}');
 
-        final completedReminder = reminder.copyWith(
-          isCompleted: true,
-          updatedAt: DateTime.now(),
-        );
+        // Check if this is a repeating reminder (daily, weekly, etc.)
+        if (reminder.hasRepeat) {
+          print(
+            '🔄 This is a repeating reminder - rescheduling to next occurrence',
+          );
 
-        // Update in database
-        print('📍 Step 2: Marking reminder as completed in database...');
-        await database.updateReminder(completedReminder);
-        print('✅ Database updated - reminder marked as done');
+          // Import scheduling service to calculate next occurrence
+          final nextOccurrence = SchedulingService.calculateNextOccurrence(
+            reminder,
+          );
+          print('📍 Step 2: Next occurrence calculated: $nextOccurrence');
 
-        // Cancel all notifications asynchronously
-        print('📍 Step 3: Starting async notification cancellation...');
-        final tempNotificationService = IOSNotificationService(
-          database: database,
-          onNotificationTap: (_, __) {},
-          onSnoozeAction: (_, __) {},
-          onMarkDone: (_) {},
-        );
+          final rescheduledReminder = reminder.copyWith(
+            scheduledAt: nextOccurrence,
+            updatedAt: DateTime.now(),
+            // Don't mark as completed - just reschedule to next occurrence
+          );
 
-        // Don't await - let cancellation happen in background
-        _handleMarkDoneNotificationCancellationAsync(
-          tempNotificationService,
-          reminderId,
-        );
-        print(
-          '✅ Async notification cancellation started (continuing in background)',
-        );
+          // Update in database
+          print(
+            '📍 Step 3: Updating reminder with next occurrence in database...',
+          );
+          await database.updateReminder(rescheduledReminder);
+          print('✅ Database updated - reminder rescheduled to next occurrence');
 
-        print('🎉 SUCCESSFULLY marked reminder $reminderId as done');
+          // Use the same mechanism as snooze to cancel all notifications (including auto-snooze) and reschedule
+          print(
+            '📍 Step 4: Starting async notification rescheduling (same as snooze)...',
+          );
+          final tempNotificationService = IOSNotificationService(
+            database: database,
+            onNotificationTap: (_, __) {},
+            onSnoozeAction: (_, __) {},
+            onMarkDone: (_) {},
+          );
+
+          // Use the same rescheduling mechanism as snooze - this properly cancels auto-snooze
+          _handleNotificationReschedulingAsyncStatic(
+            tempNotificationService,
+            reminderId,
+            rescheduledReminder,
+          );
+          print(
+            '✅ Async notification rescheduling started (continuing in background)',
+          );
+
+          print(
+            '🎉 SUCCESSFULLY rescheduled repeating reminder $reminderId to next occurrence',
+          );
+        } else {
+          print('📍 This is a one-time reminder - marking as completed');
+
+          final completedReminder = reminder.copyWith(
+            isCompleted: true,
+            updatedAt: DateTime.now(),
+          );
+
+          // Update in database
+          print('📍 Step 2: Marking reminder as completed in database...');
+          await database.updateReminder(completedReminder);
+          print('✅ Database updated - reminder marked as done');
+
+          // Cancel all notifications asynchronously
+          print('📍 Step 3: Starting async notification cancellation...');
+          final tempNotificationService = IOSNotificationService(
+            database: database,
+            onNotificationTap: (_, __) {},
+            onSnoozeAction: (_, __) {},
+            onMarkDone: (_) {},
+          );
+
+          // Don't await - let cancellation happen in background
+          _handleMarkDoneNotificationCancellationAsync(
+            tempNotificationService,
+            reminderId,
+          );
+          print(
+            '✅ Async notification cancellation started (continuing in background)',
+          );
+
+          print('🎉 SUCCESSFULLY marked one-time reminder $reminderId as done');
+        }
       } catch (e, stackTrace) {
         print('💥 CRITICAL ERROR marking reminder $reminderId as done: $e');
         print('Stack trace: $stackTrace');
@@ -464,28 +518,76 @@ class RemindersNotifier
       final reminder = await _database.getReminderById(reminderId);
       if (reminder == null) return;
 
-      final completedReminder = reminder.copyWith(
-        isCompleted: true,
-        updatedAt: DateTime.now(),
-      );
+      // Check if this is a repeating reminder (daily, weekly, etc.)
+      if (reminder.hasRepeat) {
+        print(
+          '🔄 This is a repeating reminder - rescheduling to next occurrence',
+        );
 
-      // Update in database immediately for instant UI update
-      await _database.updateReminder(completedReminder);
-      print('✅ Database updated - reminder marked as done');
+        // Calculate next occurrence
+        final nextOccurrence = SchedulingService.calculateNextOccurrence(
+          reminder,
+        );
+        print('📍 Next occurrence calculated: $nextOccurrence');
 
-      // Reload reminders immediately so UI updates
-      await _loadReminders();
-      print('✅ UI updated with completed reminder');
+        final rescheduledReminder = reminder.copyWith(
+          scheduledAt: nextOccurrence,
+          updatedAt: DateTime.now(),
+          // Don't mark as completed - just reschedule to next occurrence
+        );
 
-      // Cancel notifications asynchronously in background
-      print('📍 Starting async notification cancellation...');
-      _handleMarkDoneNotificationCancellationAsync(
-        _notificationService,
-        reminderId,
-      );
-      print(
-        '✅ Async notification cancellation started (continuing in background)',
-      );
+        // Update in database immediately for instant UI update
+        await _database.updateReminder(rescheduledReminder);
+        print('✅ Database updated - reminder rescheduled to next occurrence');
+
+        // Reload reminders immediately so UI updates
+        await _loadReminders();
+        print('✅ UI updated with rescheduled reminder');
+
+        // Use the same rescheduling mechanism as snooze - this properly cancels auto-snooze
+        print(
+          '📍 Starting async notification rescheduling (same as snooze)...',
+        );
+        _handleNotificationReschedulingAsyncStatic(
+          _notificationService,
+          reminderId,
+          rescheduledReminder,
+        );
+        print(
+          '✅ Async notification rescheduling started (continuing in background)',
+        );
+
+        print(
+          '🎉 SUCCESSFULLY rescheduled repeating reminder $reminderId to next occurrence',
+        );
+      } else {
+        print('📍 This is a one-time reminder - marking as completed');
+
+        final completedReminder = reminder.copyWith(
+          isCompleted: true,
+          updatedAt: DateTime.now(),
+        );
+
+        // Update in database immediately for instant UI update
+        await _database.updateReminder(completedReminder);
+        print('✅ Database updated - reminder marked as done');
+
+        // Reload reminders immediately so UI updates
+        await _loadReminders();
+        print('✅ UI updated with completed reminder');
+
+        // Cancel notifications asynchronously in background
+        print('📍 Starting async notification cancellation...');
+        _handleMarkDoneNotificationCancellationAsync(
+          _notificationService,
+          reminderId,
+        );
+        print(
+          '✅ Async notification cancellation started (continuing in background)',
+        );
+
+        print('🎉 SUCCESSFULLY marked one-time reminder $reminderId as done');
+      }
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);
     }
