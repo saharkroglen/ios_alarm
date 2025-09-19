@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../models/reminder.dart' as model;
 import '../providers/app_providers.dart';
@@ -100,10 +101,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // App Information Section
           _buildSectionHeader(context, 'About'),
 
-          const ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text('Version'),
-            subtitle: Text('1.0.0'),
+          FutureBuilder<PackageInfo>(
+            future: PackageInfo.fromPlatform(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                final packageInfo = snapshot.data!;
+                return ListTile(
+                  leading: const Icon(Icons.info_outline),
+                  title: const Text('Version'),
+                  subtitle: Text(
+                    '${packageInfo.version} (${packageInfo.buildNumber})',
+                  ),
+                );
+              } else if (snapshot.hasError) {
+                return const ListTile(
+                  leading: Icon(Icons.info_outline),
+                  title: Text('Version'),
+                  subtitle: Text('1.0.0 (4)'),
+                );
+              } else {
+                return const ListTile(
+                  leading: Icon(Icons.info_outline),
+                  title: Text('Version'),
+                  subtitle: Text('Loading...'),
+                );
+              }
+            },
           ),
 
           ListTile(
