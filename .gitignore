@@ -60,7 +60,7 @@ windows/flutter/ephemeral/
 # Web
 # (build artifacts already ignored via build/)
 
-# Optional: FVM (if you use it)  -
+# Optional: FVM (if you use it)
 .fvm/
 !.fvm/fvm_config.json
 
