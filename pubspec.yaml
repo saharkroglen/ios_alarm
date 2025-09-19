@@ -1,0 +1,51 @@
+name: ios_alarm
+description: "iOS Scheduler / Reminder App with lock-screen notifications and snooze functionality"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI and Icons
+  cupertino_icons: ^1.0.8
+  
+  # State Management
+  flutter_riverpod: ^2.5.1
+  
+  # Local Storage
+  sqflite: ^2.3.0
+  path_provider: ^2.1.2
+  path: ^1.9.0
+  
+  # Notifications
+  flutter_local_notifications: ^17.2.2
+  
+  # Audio
+  audioplayers: ^6.0.0
+  
+  # Time and Date
+  timezone: ^0.9.4
+  intl: ^0.19.0
+  
+  # Navigation and Deep Links
+  go_router: ^14.2.7
+  
+  # Utilities
+  collection: ^1.18.0
+  uuid: ^4.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/sounds/
