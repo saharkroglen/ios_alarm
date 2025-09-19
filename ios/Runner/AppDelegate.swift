@@ -150,23 +150,9 @@ import UserNotifications
       }
     }
     
-    // Extract from subtitle or other indicators
-    let subtitle = notification.request.content.subtitle
-    if subtitle.contains("⭐ STARS") {
-      return "stars.caf"
-    } else if subtitle.contains("☀️ SUMMER") {
-      return "summer.caf"
-    } else if subtitle.contains("🔮 MYSTERY") {
-      return "mistery.caf"
-    } else if subtitle.contains("🚨 ALARM") {
-      return "summer.caf" // Legacy support - redirect to summer
-    } else if subtitle.contains("🎵 CHIME") {
-      return "stars.caf" // Legacy support
-    } else if subtitle.contains("🔔 BELL") {
-      return "mistery.caf" // Legacy support
-    }
-    
-    // Default fallback to stars
+    // Since we removed subtitles, we'll use a default sound approach
+    // In the future, this could be enhanced to extract sound info from payload
+    // For now, default to stars.caf
     return "stars.caf"
   }
   

@@ -210,7 +210,6 @@ class IOSNotificationService implements NotificationService {
           presentBadge: true,
           presentSound: true,
           badgeNumber: 1,
-          subtitle: '⭐ STARS SOUND',
         );
       case 'summer.caf':
         return DarwinNotificationDetails(
@@ -221,7 +220,6 @@ class IOSNotificationService implements NotificationService {
           presentBadge: true,
           presentSound: true,
           badgeNumber: 2,
-          subtitle: '☀️ SUMMER SOUND',
         );
       case 'mistery.caf':
         return DarwinNotificationDetails(
@@ -232,7 +230,6 @@ class IOSNotificationService implements NotificationService {
           presentBadge: true,
           presentSound: true,
           badgeNumber: 3,
-          subtitle: '🔮 MYSTERY SOUND',
         );
       // Legacy support for old names
       case 'chime_1.caf':
@@ -244,7 +241,6 @@ class IOSNotificationService implements NotificationService {
           presentBadge: true,
           presentSound: true,
           badgeNumber: 1,
-          subtitle: '⭐ STARS SOUND',
         );
       case 'bell_1.caf':
         return DarwinNotificationDetails(
@@ -255,7 +251,6 @@ class IOSNotificationService implements NotificationService {
           presentBadge: true,
           presentSound: true,
           badgeNumber: 3,
-          subtitle: '🔮 MYSTERY SOUND',
         );
       case 'alarm_1.caf':
         return DarwinNotificationDetails(
@@ -266,7 +261,6 @@ class IOSNotificationService implements NotificationService {
           presentBadge: true,
           presentSound: true,
           badgeNumber: 2,
-          subtitle: '☀️ SUMMER SOUND',
         );
       default:
         return DarwinNotificationDetails(
@@ -277,7 +271,6 @@ class IOSNotificationService implements NotificationService {
           presentBadge: true,
           presentSound: true,
           badgeNumber: 1,
-          subtitle: '⭐ STARS SOUND',
         );
     }
   }
