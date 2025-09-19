@@ -72,8 +72,13 @@ import UserNotifications
     willPresent notification: UNNotification,
     withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
-    // Show notification even when app is in foreground
-    completionHandler([.alert, .sound, .badge])
+    // Show notification even when app is in foreground with extended display time
+    // Use .banner to ensure 15-second display duration (iOS 14+)
+    if #available(iOS 14.0, *) {
+      completionHandler([.banner, .sound, .badge])
+    } else {
+      completionHandler([.alert, .sound, .badge])
+    }
     
     // Using built-in notification sound with critical interruption level
     // to ensure banner stays visible longer and sound plays completely

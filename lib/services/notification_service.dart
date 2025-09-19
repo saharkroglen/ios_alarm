@@ -166,7 +166,7 @@ class IOSNotificationService implements NotificationService {
         alert: true,
         badge: true,
         sound: true,
-        critical: false, // Not requesting critical alerts in MVP
+        critical: true, // Enable critical alerts for extended display duration
       );
     }
   }
@@ -195,6 +195,170 @@ class IOSNotificationService implements NotificationService {
     }
   }
 
+  /// Schedule a notification with extended 15-second visibility using sequential notifications
+  Future<void> _scheduleExtendedNotification(
+    model.Reminder reminder,
+    tz.TZDateTime scheduledTz,
+    String payload, {
+    bool isTestNotification = false,
+  }) async {
+    // Schedule the main notification
+    await _scheduleMainNotification(
+      reminder,
+      scheduledTz,
+      payload,
+      isTestNotification: isTestNotification,
+    );
+
+    // Schedule follow-up notifications every 5 seconds for 15 seconds total
+    if (!isTestNotification) {
+      for (int i = 1; i <= 3; i++) {
+        final followUpTime = scheduledTz.add(Duration(seconds: i * 5));
+        await _scheduleFollowUpNotification(reminder, followUpTime, payload, i);
+      }
+    }
+  }
+
+  /// Schedule the main notification
+  Future<void> _scheduleMainNotification(
+    model.Reminder reminder,
+    tz.TZDateTime scheduledTz,
+    String payload, {
+    bool isTestNotification = false,
+  }) async {
+    final requestId = _uuid.v4();
+    final requestIdHash = requestId.hashCode.abs();
+
+    final DarwinNotificationDetails iosDetails = _buildNotificationDetails(
+      reminder,
+      isMain: true,
+    );
+    final NotificationDetails notificationDetails = NotificationDetails(
+      iOS: iosDetails,
+    );
+
+    await _notifications.zonedSchedule(
+      requestIdHash,
+      reminder.title,
+      reminder.notes?.isNotEmpty == true
+          ? reminder.notes!
+          : 'Tap Snooze to delay or Done to complete',
+      scheduledTz,
+      notificationDetails,
+      payload: payload,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.wallClockTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+
+    // Store pending notification in database
+    final pendingNotification = AppPendingNotification(
+      reminderId: reminder.id,
+      platformRequestId: requestId,
+      fireAt: scheduledTz.toUtc(),
+    );
+    await database.insertPendingNotification(pendingNotification);
+  }
+
+  /// Schedule follow-up notifications to extend visibility
+  Future<void> _scheduleFollowUpNotification(
+    model.Reminder reminder,
+    tz.TZDateTime scheduledTz,
+    String payload,
+    int sequenceNumber,
+  ) async {
+    final requestId = _uuid.v4();
+    final requestIdHash = requestId.hashCode.abs();
+
+    final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      categoryIdentifier: kAlarmCategory,
+      sound: null, // No sound for follow-ups to avoid repetition
+      interruptionLevel: InterruptionLevel.critical,
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: false,
+      badgeNumber: sequenceNumber + 1,
+      subtitle: '⏰ Extended Reminder ${sequenceNumber}/3',
+    );
+
+    final NotificationDetails notificationDetails = NotificationDetails(
+      iOS: iosDetails,
+    );
+
+    await _notifications.zonedSchedule(
+      requestIdHash,
+      '${reminder.title} (${sequenceNumber * 5}s)',
+      'This reminder is still active. Tap to respond.',
+      scheduledTz,
+      notificationDetails,
+      payload: payload,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.wallClockTime,
+    );
+
+    // Store pending notification in database
+    final pendingNotification = AppPendingNotification(
+      reminderId: reminder.id,
+      platformRequestId: requestId,
+      fireAt: scheduledTz.toUtc(),
+    );
+    await database.insertPendingNotification(pendingNotification);
+  }
+
+  /// Build notification details based on reminder sound
+  DarwinNotificationDetails _buildNotificationDetails(
+    model.Reminder reminder, {
+    bool isMain = true,
+  }) {
+    switch (reminder.soundName) {
+      case 'alarm_1.caf':
+        return DarwinNotificationDetails(
+          categoryIdentifier: kAlarmCategory,
+          sound: 'alarm_1.caf',
+          interruptionLevel: InterruptionLevel.critical,
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          badgeNumber: 1,
+          subtitle: '🚨 ALARM SOUND',
+        );
+      case 'chime_1.caf':
+        return DarwinNotificationDetails(
+          categoryIdentifier: kAlarmCategory,
+          sound: 'chime_1.caf',
+          interruptionLevel: InterruptionLevel.critical,
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          badgeNumber: 2,
+          subtitle: '🎵 CHIME SOUND',
+        );
+      case 'bell_1.caf':
+        return DarwinNotificationDetails(
+          categoryIdentifier: kAlarmCategory,
+          sound: 'bell_1.caf',
+          interruptionLevel: InterruptionLevel.critical,
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          badgeNumber: 3,
+          subtitle: '🔔 BELL SOUND',
+        );
+      default:
+        return DarwinNotificationDetails(
+          categoryIdentifier: kAlarmCategory,
+          sound: null,
+          interruptionLevel: InterruptionLevel.critical,
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          badgeNumber: 1,
+        );
+    }
+  }
+
   @override
   Future<void> scheduleReminder(
     model.Reminder reminder, {
@@ -205,77 +369,8 @@ class IOSNotificationService implements NotificationService {
     // Cancel any existing notifications for this reminder
     await cancelReminderNotifications(reminder.id);
 
-    // Generate unique platform request ID
-    final requestId = _uuid.v4();
-    final requestIdHash = requestId.hashCode.abs();
-
     // Convert local scheduled time to UTC for timezone calculations
-    final scheduledUtc = reminder.scheduledAt.toUtc();
     final scheduledTz = tz.TZDateTime.from(reminder.scheduledAt, tz.local);
-
-    // Create notification details
-    // Use UNNotificationSoundName for iOS system sounds
-    // Create different notification configurations for different sounds
-    final DarwinNotificationDetails iosDetails;
-
-    switch (reminder.soundName) {
-      case 'alarm_1.caf':
-        // "Alarm" - Critical level to stay visible longer
-        iosDetails = DarwinNotificationDetails(
-          categoryIdentifier: kAlarmCategory,
-          sound: 'alarm_1.caf',
-          interruptionLevel:
-              InterruptionLevel.critical, // Critical stays longer
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true, // Re-enable built-in sound for longer banner
-          badgeNumber: 1,
-          subtitle: '🚨 ALARM SOUND',
-        );
-        break;
-      case 'chime_1.caf':
-        // "Chime" - Critical level to stay visible longer
-        iosDetails = DarwinNotificationDetails(
-          categoryIdentifier: kAlarmCategory,
-          sound: 'chime_1.caf',
-          interruptionLevel:
-              InterruptionLevel.critical, // Critical stays longer
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true, // Re-enable built-in sound for longer banner
-          badgeNumber: 2, // Different badge number
-          subtitle: '🎵 CHIME SOUND',
-        );
-        break;
-      case 'bell_1.caf':
-        // "Bell" - Critical level to stay visible longer
-        iosDetails = DarwinNotificationDetails(
-          categoryIdentifier: kAlarmCategory,
-          sound: 'bell_1.caf',
-          interruptionLevel:
-              InterruptionLevel.critical, // Critical stays longer
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true, // Re-enable built-in sound for longer banner
-          badgeNumber: 3, // Different badge number
-          subtitle: '🔔 BELL SOUND',
-        );
-        break;
-      default:
-        iosDetails = DarwinNotificationDetails(
-          categoryIdentifier: kAlarmCategory,
-          sound: null,
-          interruptionLevel: InterruptionLevel.active,
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-          badgeNumber: 1,
-        );
-    }
-
-    final NotificationDetails notificationDetails = NotificationDetails(
-      iOS: iosDetails,
-    );
 
     // Create payload with reminder data
     final payload = jsonEncode({
@@ -288,55 +383,36 @@ class IOSNotificationService implements NotificationService {
 
     try {
       if (kDebugMode) {
-        print('Scheduling notification:');
-        print('  ID: $requestIdHash');
+        print('Scheduling extended 15-second notification:');
+        print('  Reminder ID: ${reminder.id}');
         print('  Title: ${reminder.title}');
         print('  Scheduled for: $scheduledTz');
         print('  Sound: ${reminder.soundName}');
         print('  Category: $kAlarmCategory');
       }
 
-      // Schedule the notification
-      await _notifications.zonedSchedule(
-        requestIdHash,
-        reminder.title,
-        reminder.notes?.isNotEmpty == true
-            ? reminder.notes!
-            : 'Tap Snooze to delay or Done to complete',
+      // Use the new extended notification scheduling method
+      await _scheduleExtendedNotification(
+        reminder,
         scheduledTz,
-        notificationDetails,
-        payload: payload,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.wallClockTime,
-        matchDateTimeComponents: DateTimeComponents.time,
+        payload,
+        isTestNotification: isTestNotification,
       );
-
-      // Store pending notification in database
-      final pendingNotification = AppPendingNotification(
-        reminderId: reminder.id,
-        platformRequestId: requestId,
-        fireAt: scheduledUtc,
-      );
-      await database.insertPendingNotification(pendingNotification);
 
       if (kDebugMode) {
         print(
-          '✅ Successfully scheduled notification for reminder ${reminder.id}',
+          '✅ Successfully scheduled extended notification sequence for reminder ${reminder.id}',
         );
 
-        // Verify the notification was scheduled
+        // Verify notifications were scheduled
         final pendingNotifications =
             await _notifications.pendingNotificationRequests();
-        final ourNotification =
-            pendingNotifications
-                .where((n) => n.id == requestIdHash)
-                .firstOrNull;
-        if (ourNotification != null) {
-          print('✅ Confirmed: Notification is in pending list');
-        } else {
-          print('❌ Warning: Notification not found in pending list');
-        }
+        final ourNotifications = pendingNotifications.where(
+          (n) => n.payload?.contains(reminder.id) == true,
+        );
+        print(
+          '✅ Confirmed: ${ourNotifications.length} notifications scheduled for extended display',
+        );
       }
 
       // Schedule auto-snooze repeating notification 1 minute after the original
