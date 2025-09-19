@@ -228,31 +228,67 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder:
           (context) => AlertDialog(
             title: const Text('Default Sound'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children:
-                  model.kAvailableSounds
-                      .map(
-                        (sound) => RadioListTile<String>(
-                          title: Text(_getSoundDisplayName(sound)),
-                          value: sound,
-                          groupValue: currentSound,
-                          secondary: IconButton(
-                            icon: const Icon(Icons.play_arrow, size: 20),
-                            onPressed: () => _playSound(sound),
-                            tooltip: 'Preview',
-                          ),
-                          onChanged: (value) {
-                            if (value != null) {
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children:
+                    model.kAvailableSounds
+                        .map(
+                          (sound) => InkWell(
+                            onTap: () {
                               ref
                                   .read(defaultSoundProvider.notifier)
-                                  .setDefaultSound(value);
+                                  .setDefaultSound(sound);
                               Navigator.of(context).pop();
-                            }
-                          },
-                        ),
-                      )
-                      .toList(),
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              child: Row(
+                                children: [
+                                  Radio<String>(
+                                    value: sound,
+                                    groupValue: currentSound,
+                                    onChanged: (value) {
+                                      if (value != null) {
+                                        ref
+                                            .read(defaultSoundProvider.notifier)
+                                            .setDefaultSound(value);
+                                        Navigator.of(context).pop();
+                                      }
+                                    },
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      _getSoundDisplayName(sound),
+                                      style:
+                                          Theme.of(context).textTheme.bodyLarge,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.play_arrow,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => _playSound(sound),
+                                    tooltip: 'Preview',
+                                    constraints: const BoxConstraints(
+                                      minWidth: 40,
+                                      minHeight: 40,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+              ),
             ),
             actions: [
               TextButton(
@@ -278,26 +314,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             builder:
                 (context, setState) => AlertDialog(
                   title: const Text('Default Snooze Options'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children:
-                        model.kDefaultSnoozePresets.map((preset) {
-                          final isSelected = selectedPresets.contains(preset);
-                          return CheckboxListTile(
-                            title: Text(preset.toString()),
-                            value: isSelected,
-                            onChanged: (selected) {
-                              setState(() {
-                                if (selected == true) {
-                                  selectedPresets.add(preset);
-                                } else {
-                                  selectedPresets.remove(preset);
-                                }
-                              });
-                            },
-                            contentPadding: EdgeInsets.zero,
-                          );
-                        }).toList(),
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children:
+                          model.kDefaultSnoozePresets.map((preset) {
+                            final isSelected = selectedPresets.contains(preset);
+                            return InkWell(
+                              onTap: () {
+                                setState(() {
+                                  if (isSelected) {
+                                    selectedPresets.remove(preset);
+                                  } else {
+                                    selectedPresets.add(preset);
+                                  }
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Checkbox(
+                                      value: isSelected,
+                                      onChanged: (selected) {
+                                        setState(() {
+                                          if (selected == true) {
+                                            selectedPresets.add(preset);
+                                          } else {
+                                            selectedPresets.remove(preset);
+                                          }
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        preset.toString(),
+                                        style:
+                                            Theme.of(
+                                              context,
+                                            ).textTheme.bodyLarge,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                    ),
                   ),
                   actions: [
                     TextButton(
