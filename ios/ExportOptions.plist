@@ -20,8 +20,8 @@
 	<string>automatic</string>
 	<key>provisioningProfiles</key>
 	<dict>
-		<key>com.saharkroglen.iosAlarm</key>
-		<string>iOS Team Provisioning Profile: com.saharkroglen.iosAlarm</string>
+		<key>com.sk.iosAlarm</key>
+		<string>iOS Team Provisioning Profile: com.sk.iosAlarm</string>
 	</dict>
 </dict>
 </plist>
