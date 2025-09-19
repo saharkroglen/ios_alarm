@@ -49,7 +49,6 @@ class IOSAlarmApp extends ConsumerWidget {
       ),
       routerConfig: router,
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => NotificationListener(child: child),
     );
   }
 }
@@ -67,19 +66,26 @@ class NotificationListener extends ConsumerWidget {
       next,
     ) {
       if (next != null) {
-        // Show the action dialog
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder:
-              (context) => ReminderActionDialog(
-                reminderId: next['reminderId'] as String,
-                isAutoSnooze: next['isAutoSnooze'] as bool? ?? false,
-                snoozeCount: next['snoozeCount'] as int? ?? 0,
-              ),
-        ).then((_) {
-          // Clear the action state after dialog closes
-          ref.read(currentReminderActionProvider.notifier).state = null;
+        // Navigate to home screen to show the highlighted reminder
+        context.go('/');
+
+        // Show the action dialog after a brief delay to allow navigation
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (context.mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder:
+                  (context) => ReminderActionDialog(
+                    reminderId: next['reminderId'] as String,
+                    isAutoSnooze: next['isAutoSnooze'] as bool? ?? false,
+                    snoozeCount: next['snoozeCount'] as int? ?? 0,
+                  ),
+            ).then((_) {
+              // Clear the action state after dialog closes
+              ref.read(currentReminderActionProvider.notifier).state = null;
+            });
+          }
         });
       }
     });
@@ -93,27 +99,60 @@ extension on IOSAlarmApp {
     return GoRouter(
       initialLocation: '/',
       routes: [
+        // Special route for notification dialog
+        GoRoute(
+          path: '/notification-action',
+          name: 'notification-action',
+          builder: (context, state) {
+            final reminderId = state.uri.queryParameters['reminderId'];
+            final isAutoSnooze =
+                state.uri.queryParameters['isAutoSnooze'] == 'true';
+            final snoozeCount =
+                int.tryParse(state.uri.queryParameters['snoozeCount'] ?? '0') ??
+                0;
+
+            if (reminderId == null) {
+              return NotificationListener(child: const HomeScreen());
+            }
+
+            return NotificationListener(
+              child: ReminderActionDialog(
+                reminderId: reminderId,
+                isAutoSnooze: isAutoSnooze,
+                snoozeCount: snoozeCount,
+              ),
+            );
+          },
+        ),
         GoRoute(
           path: '/',
           name: 'home',
-          builder: (context, state) => const HomeScreen(),
+          builder:
+              (context, state) =>
+                  NotificationListener(child: const HomeScreen()),
         ),
         GoRoute(
           path: '/permissions',
           name: 'permissions',
-          builder: (context, state) => const PermissionsScreen(),
+          builder:
+              (context, state) =>
+                  NotificationListener(child: const PermissionsScreen()),
         ),
         GoRoute(
           path: '/create',
           name: 'create',
-          builder: (context, state) => const CreateEditReminderScreen(),
+          builder:
+              (context, state) =>
+                  NotificationListener(child: const CreateEditReminderScreen()),
         ),
         GoRoute(
           path: '/edit/:id',
           name: 'edit',
           builder: (context, state) {
             final id = state.pathParameters['id']!;
-            return CreateEditReminderScreen(reminderId: id);
+            return NotificationListener(
+              child: CreateEditReminderScreen(reminderId: id),
+            );
           },
         ),
         GoRoute(
@@ -122,15 +161,19 @@ extension on IOSAlarmApp {
           builder: (context, state) {
             final reminderId = state.uri.queryParameters['rid'];
             if (reminderId == null) {
-              return const HomeScreen();
+              return NotificationListener(child: const HomeScreen());
             }
-            return CustomSnoozeScreen(reminderId: reminderId);
+            return NotificationListener(
+              child: CustomSnoozeScreen(reminderId: reminderId),
+            );
           },
         ),
         GoRoute(
           path: '/settings',
           name: 'settings',
-          builder: (context, state) => const SettingsScreen(),
+          builder:
+              (context, state) =>
+                  NotificationListener(child: const SettingsScreen()),
         ),
       ],
       redirect: (context, state) async {

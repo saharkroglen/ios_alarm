@@ -122,8 +122,16 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
         'snoozeCount': snoozeCount,
       };
 
+      // Highlight the matching reminder for 5 seconds
+      ref.read(highlightedReminderProvider.notifier).state = reminderId;
+
+      // Auto-clear highlight after 5 seconds with fadeout
+      Future.delayed(const Duration(seconds: 5), () {
+        ref.read(highlightedReminderProvider.notifier).state = null;
+      });
+
       print(
-        'Notification tapped for reminder: $reminderId (autoSnooze: $isAutoSnooze, count: $snoozeCount)',
+        'Notification tapped for reminder: $reminderId (autoSnooze: $isAutoSnooze, count: $snoozeCount) - highlighting reminder',
       );
     },
     onSnoozeAction: (reminderId, minutes) async {
@@ -517,6 +525,9 @@ final snoozeSheetProvider = StateProvider<String?>((ref) => null);
 final currentReminderActionProvider = StateProvider<Map<String, dynamic>?>(
   (ref) => null,
 );
+
+// Highlighted reminder provider (for notification tap highlighting)
+final highlightedReminderProvider = StateProvider<String?>((ref) => null);
 
 // Persistent default sound provider
 class DefaultSoundNotifier extends StateNotifier<String> {

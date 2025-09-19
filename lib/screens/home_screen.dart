@@ -282,7 +282,7 @@ class HomeScreen extends ConsumerWidget {
             _buildSectionHeader(context, entry.key),
             const SizedBox(height: 8),
             ...entry.value.map(
-              (reminder) => _buildReminderCard(context, ref, reminder),
+              (reminder) => _buildAnimatedReminderCard(context, ref, reminder),
             ),
             const SizedBox(height: 24),
           ],
@@ -304,6 +304,49 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildAnimatedReminderCard(
+    BuildContext context,
+    WidgetRef ref,
+    model.Reminder reminder,
+  ) {
+    final highlightedReminderId = ref.watch(highlightedReminderProvider);
+    final isHighlighted = highlightedReminderId == reminder.id;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      margin: const EdgeInsets.only(bottom: 8.0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color:
+            isHighlighted
+                ? Theme.of(context).colorScheme.primary.withOpacity(0.25)
+                : Colors.transparent,
+        border:
+            isHighlighted
+                ? Border.all(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+                  width: 3,
+                )
+                : null,
+        boxShadow:
+            isHighlighted
+                ? [
+                  BoxShadow(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.3),
+                    blurRadius: 8,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+                : null,
+      ),
+      child: _buildReminderCard(context, ref, reminder),
+    );
+  }
+
   Widget _buildReminderCard(
     BuildContext context,
     WidgetRef ref,
@@ -313,7 +356,8 @@ class HomeScreen extends ConsumerWidget {
     final dateFormat = DateFormat('MMM d, h:mm a');
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8.0),
+      margin:
+          EdgeInsets.zero, // Remove margin since AnimatedContainer handles it
       child: InkWell(
         onTap: () => context.push('/edit/${reminder.id}'),
         borderRadius: BorderRadius.circular(12),
