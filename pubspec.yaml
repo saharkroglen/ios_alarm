@@ -47,6 +47,12 @@ dependencies:
   
   # Package info for version and build number
   package_info_plus: ^8.0.2
+    # App icon generation
+  flutter_launcher_icons: "^0.14.4"
+
+flutter_launcher_icons:
+  ios: true
+  image_path: "assets/logo.png"
 
 dev_dependencies:
   flutter_test:
