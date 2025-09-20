@@ -2,7 +2,7 @@ name: ios_alarm
 description: "iOS Scheduler / Reminder App with lock-screen notifications and snooze functionality"
 publish_to: 'none'
 
-version: 1.0.0+5
+version: 1.0.0+6
 
 environment:
   sdk: ^3.7.2
